@@ -34,7 +34,9 @@ struct AppState {
     sprites: HashMap<PieceType, graphics::Image>,
     board: Game,
     selected_pos: (isize, isize),
-    highlighted_pos: Vec<(isize, isize)>
+    highlighted_pos: Vec<(isize, isize)>,
+    taken_black_pieces: Vec<PieceType>,
+    taken_white_pieces: Vec<PieceType>,
     // Save piece positions, which tiles has been clicked, current colour, etc...
 }
 
@@ -53,7 +55,9 @@ impl AppState {
                 .collect::<HashMap<PieceType, graphics::Image>>(),
             board: board,
             selected_pos: (0, 0),
-            highlighted_pos: Vec::new()
+            highlighted_pos: Vec::new(),
+            taken_black_pieces: Vec::new(),
+            taken_white_pieces: Vec::new(),
         };
 
         Ok(state)
@@ -133,8 +137,14 @@ impl event::EventHandler for AppState {
             graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 }, ));
         }
 
+        // draw pieces
         for (pos, val) in self.board.board.iter() {
-            graphics::draw(ctx, &self.sprites[val], (ggez::mint::Point2 { x: ((pos.file - 1) as f32 * GRID_CELL_SIZE.0 as f32) + SCREEN_SIZE.0 * 0.25 as f32, y: (pos.rank - 1) as f32 * GRID_CELL_SIZE.1 as f32 }, ));
+            graphics::draw(ctx, &self.sprites[val], (ggez::mint::Point2 { x: ((pos.file - 1) as f32 * GRID_CELL_SIZE.0 as f32) + SCREEN_SIZE.0 * 0.25 as f32, y: (8 - pos.rank) as f32 * GRID_CELL_SIZE.1 as f32 }, ));
+        }
+
+        // draw taken pieces
+        for x in 0..self.taken_black_pieces.len() {
+            
         }
 
         // draw text with dark gray colouring and center position
@@ -159,6 +169,34 @@ impl event::EventHandler for AppState {
                 let pos_y = (y / GRID_CELL_SIZE.1 as f32).ceil();
 
                 if self.highlighted_pos.contains(&(pos_x as isize, pos_y as isize)) {
+                    if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) {
+                        match self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }] {
+                            PieceType::Queen(colour) => match colour {
+                                Colour::Black => self.taken_black_pieces.push(PieceType::Queen(Colour::Black)),
+                                _ => self.taken_white_pieces.push(PieceType::Queen(Colour::White))
+                            },
+                            PieceType::King(colour) => match colour {
+                                Colour::Black => self.taken_black_pieces.push(PieceType::King(Colour::Black)),
+                                _ => self.taken_white_pieces.push(PieceType::King(Colour::White))
+                            },
+                            PieceType::Pawn(colour) => match colour {
+                                Colour::Black => self.taken_black_pieces.push(PieceType::Pawn(Colour::Black)),
+                                _ => self.taken_white_pieces.push(PieceType::Pawn(Colour::White))
+                            },
+                            PieceType::Bishop(colour) => match colour {
+                                Colour::Black => self.taken_black_pieces.push(PieceType::Bishop(Colour::Black)),
+                                _ => self.taken_white_pieces.push(PieceType::Bishop(Colour::White))
+                            },
+                            PieceType::Knight(colour) => match colour {
+                                Colour::Black => self.taken_black_pieces.push(PieceType::Knight(Colour::Black)),
+                                _ => self.taken_white_pieces.push(PieceType::Knight(Colour::White))
+                            },
+                            PieceType::Rook(colour) => match colour {
+                                Colour::Black => self.taken_black_pieces.push(PieceType::Rook(Colour::Black)),
+                                _ => self.taken_white_pieces.push(PieceType::Rook(Colour::White))
+                            },
+                        }
+                    }
                     self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
                     self.selected_pos = (0, 0);
                     self.highlighted_pos = Vec::new();
