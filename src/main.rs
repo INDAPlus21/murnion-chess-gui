@@ -10,6 +10,7 @@ use ggez::{Context, GameResult};
 use std::path;
 use eliasfl_chess::{Game, GameState, Color as Colour, Piece as PieceType};
 use ggez::event::{MouseButton};
+use std::collections::HashMap;
 
 /// A chess board is 8x8 tiles.
 const GRID_SIZE: (i16, i16) = (8, 8);
@@ -28,7 +29,7 @@ const WHITE: Color = Color::new(188.0/255.0, 140.0/255.0, 76.0/255.0, 1.0);
 
 /// GUI logic and event implementation structure. 
 struct AppState {
-    sprites: Vec<(PieceType, graphics::Image)>,
+    sprites: HashMap<PieceType, graphics::Image>,
     board: Game
     // Save piece positions, which tiles has been clicked, current colour, etc...
 }
@@ -45,7 +46,7 @@ impl AppState {
                 .map(|_sprite| {
                     (_sprite.0, graphics::Image::new(ctx, _sprite.1.clone()).unwrap())
                 })
-                .collect::<Vec<(PieceType, graphics::Image)>>(),
+                .collect::<HashMap<PieceType, graphics::Image>>(),
             board
         };
 
@@ -88,7 +89,7 @@ impl event::EventHandler for AppState {
         let state_text = graphics::Text::new(
                 graphics::TextFragment::from(format!("Game is {:?}.", self.board.get_game_state())
             )
-            .scale(graphics::Scale { x: 30.0, y: 30.0 }));
+            .scale(graphics::Scale { x: 20.0, y: 20.0 }));
 
         // get size of text
         let text_dimensions = state_text.dimensions(ctx);
@@ -125,11 +126,15 @@ impl event::EventHandler for AppState {
             graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 }, ));
         }
 
+        for (pos, val) in self.board.board.iter() {
+            graphics::draw(ctx, &self.sprites[val], (ggez::mint::Point2 { x: (pos.file - 1) as f32 * GRID_CELL_SIZE.0 as f32, y: (pos.rank - 1) as f32 * GRID_CELL_SIZE.1 as f32 }, ));
+        }
+
         // draw text with dark gray colouring and center position
         graphics::draw(ctx, &state_text, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
             .dest(ggez::mint::Point2 {
-                x: (SCREEN_SIZE.0 - text_dimensions.0 as f32) / 2f32 as f32,
-                y: (SCREEN_SIZE.1 - text_dimensions.1 as f32) / 2f32 as f32,
+                x: SCREEN_SIZE.0 * 2f32/3f32,
+                y: 0f32,
             }));
 
         // render updated graphics
