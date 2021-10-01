@@ -8,7 +8,7 @@ use ggez::event;
 use ggez::graphics::{self, DrawParam, Color, DrawMode};
 use ggez::{Context, GameResult};
 use std::path;
-use eliasfl_chess::{Game, GameState, Color as Colour, Piece as PieceType};
+use eliasfl_chess::{Game, GameState, Color as Colour, Piece as PieceType, Position};
 use ggez::event::{MouseButton};
 use std::collections::HashMap;
 
@@ -119,7 +119,7 @@ impl event::EventHandler for AppState {
                     i / 8 * GRID_CELL_SIZE.1 as i32,
                     GRID_CELL_SIZE.0 as i32,
                     GRID_CELL_SIZE.1 as i32,
-                ), if int_to_pos_tuple(i as isize) == self.selected_pos || self.highlighted_pos.contains(&int_to_pos_tuple(i as isize)) { if (self.selected_pos.0 % 2 == 0) ^ (self.selected_pos.1 % 2 == 0) { BLACK_RED } else { WHITE_RED } }
+                ), if int_to_pos_tuple(i as isize) == self.selected_pos || self.highlighted_pos.contains(&int_to_pos_tuple(i as isize)) { if (int_to_pos_tuple(i as isize).0 % 2 == 0) ^ (int_to_pos_tuple(i as isize).1 % 2 == 0) { BLACK_RED } else { WHITE_RED } }
                 else { match i % 2 {
                     0 => match i / 8 {
                         _row if _row % 2 == 0 => WHITE,
@@ -157,7 +157,22 @@ impl event::EventHandler for AppState {
                 let pos_x = x - (SCREEN_SIZE.0 * 0.25f32);
                 let pos_x = (pos_x / GRID_CELL_SIZE.0 as f32).ceil();
                 let pos_y = (y / GRID_CELL_SIZE.1 as f32).ceil();
+
+                if self.highlighted_pos.contains(&(pos_x as isize, pos_y as isize)) {
+                    self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                    self.selected_pos = (0, 0);
+                    self.highlighted_pos = Vec::new();
+                    return;
+                }
+
+                self.highlighted_pos = Vec::new();
                 self.selected_pos = (pos_x as isize, pos_y as isize);
+                if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) {
+                    for mov in self.board.get_possible_moves(Position { file: pos_x as u8, rank: pos_y as u8 }.to_string()).unwrap() {
+                        let _mov = Position::from_string(mov).unwrap();
+                        self.highlighted_pos.push((_mov.file as isize, _mov.rank as isize));
+                    }
+                }
             }
             /* check click position and update board accordingly */
         }
