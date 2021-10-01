@@ -19,18 +19,22 @@ const GRID_CELL_SIZE: (i16, i16) = (45, 45);
 
 /// Size of the application window.
 const SCREEN_SIZE: (f32, f32) = (
-    GRID_SIZE.0 as f32 * GRID_CELL_SIZE.0 as f32 * 1.5,
+    GRID_SIZE.0 as f32 * GRID_CELL_SIZE.0 as f32 * 2f32,
     GRID_SIZE.1 as f32 * GRID_CELL_SIZE.1 as f32,
 );
 
 // GUI Color representations
 const BLACK: Color = Color::new(228.0/255.0, 196.0/255.0, 108.0/255.0, 1.0);
 const WHITE: Color = Color::new(188.0/255.0, 140.0/255.0, 76.0/255.0, 1.0);
+const BLACK_RED: Color = Color::new(255.0/255.0, 96.0/255.0, 78.0/255.0, 1.0);
+const WHITE_RED: Color = Color::new(215.0/255.0, 69.0/255.0, 60.0/255.0, 1.0);
 
 /// GUI logic and event implementation structure. 
 struct AppState {
     sprites: HashMap<PieceType, graphics::Image>,
-    board: Game
+    board: Game,
+    selected_pos: (isize, isize),
+    highlighted_pos: Vec<(isize, isize)>
     // Save piece positions, which tiles has been clicked, current colour, etc...
 }
 
@@ -47,7 +51,9 @@ impl AppState {
                     (_sprite.0, graphics::Image::new(ctx, _sprite.1.clone()).unwrap())
                 })
                 .collect::<HashMap<PieceType, graphics::Image>>(),
-            board
+            board: board,
+            selected_pos: (0, 0),
+            highlighted_pos: Vec::new()
         };
 
         Ok(state)
@@ -95,9 +101,9 @@ impl event::EventHandler for AppState {
         let text_dimensions = state_text.dimensions(ctx);
         // create background rectangle with white coulouring
         let background_box = graphics::Mesh::new_rectangle(ctx, DrawMode::fill(),
-            graphics::Rect::new(SCREEN_SIZE.0 * 2f32/3f32,
+            graphics::Rect::new(0f32,
                                 0f32,
-                                SCREEN_SIZE.0 * 0.5, SCREEN_SIZE.1),
+                                SCREEN_SIZE.0, SCREEN_SIZE.1),
                                 [1.0, 1.0, 1.0, 1.0].into()
         )?;
 
@@ -109,11 +115,12 @@ impl event::EventHandler for AppState {
             let rectangle = graphics::Mesh::new_rectangle(ctx, 
                 graphics::DrawMode::fill(), 
                 graphics::Rect::new_i32(
-                    i % 8 * GRID_CELL_SIZE.0 as i32,
+                    (i % 8 * GRID_CELL_SIZE.0 as i32) + (SCREEN_SIZE.0 as i32 / 4),
                     i / 8 * GRID_CELL_SIZE.1 as i32,
                     GRID_CELL_SIZE.0 as i32,
                     GRID_CELL_SIZE.1 as i32,
-                ), match i % 2 {
+                ), if int_to_pos_tuple(i as isize) == self.selected_pos || self.highlighted_pos.contains(&int_to_pos_tuple(i as isize)) { if (self.selected_pos.0 % 2 == 0) ^ (self.selected_pos.1 % 2 == 0) { BLACK_RED } else { WHITE_RED } }
+                else { match i % 2 {
                     0 => match i / 8 {
                         _row if _row % 2 == 0 => WHITE,
                         _ => BLACK
@@ -122,18 +129,18 @@ impl event::EventHandler for AppState {
                         _row if _row % 2 == 0 => BLACK,
                         _ => WHITE
                     }
-                })?;
+                }})?;
             graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 }, ));
         }
 
         for (pos, val) in self.board.board.iter() {
-            graphics::draw(ctx, &self.sprites[val], (ggez::mint::Point2 { x: (pos.file - 1) as f32 * GRID_CELL_SIZE.0 as f32, y: (pos.rank - 1) as f32 * GRID_CELL_SIZE.1 as f32 }, ));
+            graphics::draw(ctx, &self.sprites[val], (ggez::mint::Point2 { x: ((pos.file - 1) as f32 * GRID_CELL_SIZE.0 as f32) + SCREEN_SIZE.0 * 0.25 as f32, y: (pos.rank - 1) as f32 * GRID_CELL_SIZE.1 as f32 }, ));
         }
 
         // draw text with dark gray colouring and center position
         graphics::draw(ctx, &state_text, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
             .dest(ggez::mint::Point2 {
-                x: SCREEN_SIZE.0 * 2f32/3f32,
+                x: SCREEN_SIZE.0 * 0.75,
                 y: 0f32,
             }));
 
@@ -146,9 +153,21 @@ impl event::EventHandler for AppState {
     /// Update game on mouse click
     fn mouse_button_up_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
         if button == MouseButton::Left {
+            if x <= SCREEN_SIZE.0 * 0.75 && x >= SCREEN_SIZE.0 * 0.25 {
+                let pos_x = x - (SCREEN_SIZE.0 * 0.25f32);
+                let pos_x = (pos_x / GRID_CELL_SIZE.0 as f32).ceil();
+                let pos_y = (y / GRID_CELL_SIZE.1 as f32).ceil();
+                self.selected_pos = (pos_x as isize, pos_y as isize);
+            }
             /* check click position and update board accordingly */
         }
     }
+}
+
+fn int_to_pos_tuple(x: isize) -> (isize, isize) {
+    let pos_x = &x % 8;
+    let pos_y = ((x as f32 / 8.0).trunc()) as isize; 
+    (pos_x + 1, pos_y + 1)
 }
 
 pub fn main() -> GameResult {
