@@ -20,7 +20,7 @@ const GRID_CELL_SIZE: (i16, i16) = (45, 45);
 /// Size of the application window.
 const SCREEN_SIZE: (f32, f32) = (
     GRID_SIZE.0 as f32 * GRID_CELL_SIZE.0 as f32 * 2f32,
-    GRID_SIZE.1 as f32 * GRID_CELL_SIZE.1 as f32,
+    GRID_SIZE.1 as f32 * GRID_CELL_SIZE.1 as f32 * 1.5,
 );
 
 // GUI Color representations
@@ -37,14 +37,14 @@ struct AppState {
     highlighted_pos: Vec<(isize, isize)>,
     taken_black_pieces: Vec<PieceType>,
     taken_white_pieces: Vec<PieceType>,
-    // Save piece positions, which tiles has been clicked, current colour, etc...
 }
 
 impl AppState {
     /// Initialise new application, i.e. initialise new game and load resources.
     fn new(ctx: &mut Context) -> GameResult<AppState> {
         let sprites = AppState::load_sprites();
-        let board = Game::new();
+        let mut board = Game::new();
+        board.set_promotion("queen".to_string());
 
         let state = AppState {
             sprites: sprites
@@ -100,6 +100,14 @@ impl event::EventHandler for AppState {
                 graphics::TextFragment::from(format!("Game is {:?}.", self.board.get_game_state())
             )
             .scale(graphics::Scale { x: 20.0, y: 20.0 }));
+        let turn_text = graphics::Text::new(
+                graphics::TextFragment::from(format!("Current turn is {:?}.", self.board.active_color)
+            )
+            .scale(graphics::Scale { x: 18.5, y: 20.0 })); //dont ask
+        let promotion_text = graphics::Text::new(
+                graphics::TextFragment::from(format!("Current promotion:")
+            )
+            .scale(graphics::Scale { x: 20.0, y: 20.0 }));
 
         // get size of text
         let text_dimensions = state_text.dimensions(ctx);
@@ -137,6 +145,19 @@ impl event::EventHandler for AppState {
             graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 }, ));
         }
 
+        // draw selected taken piece
+        if self.selected_pos.1 == 9 || self.selected_pos.1 == 10 {
+            let rectangle = graphics::Mesh::new_rectangle(ctx, 
+                graphics::DrawMode::fill(), 
+                graphics::Rect::new_i32(
+                    (self.selected_pos.0 * GRID_CELL_SIZE.0 as isize) as i32 + ((SCREEN_SIZE.0 * 0.25) - GRID_CELL_SIZE.0 as f32) as i32,
+                    self.selected_pos.1 as i32 * GRID_CELL_SIZE.1 as i32,
+                    GRID_CELL_SIZE.0 as i32,
+                    GRID_CELL_SIZE.1 as i32,
+                ), BLACK_RED)?;
+            graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 }, ));
+        }
+
         // draw pieces
         for (pos, val) in self.board.board.iter() {
             graphics::draw(ctx, &self.sprites[val], (ggez::mint::Point2 { x: ((pos.file - 1) as f32 * GRID_CELL_SIZE.0 as f32) + SCREEN_SIZE.0 * 0.25 as f32, y: (8 - pos.rank) as f32 * GRID_CELL_SIZE.1 as f32 }, ));
@@ -144,14 +165,52 @@ impl event::EventHandler for AppState {
 
         // draw taken pieces
         for x in 0..self.taken_black_pieces.len() {
-            
+            graphics::draw(ctx, &self.sprites[&self.taken_black_pieces[x]], (ggez::mint::Point2 { x: SCREEN_SIZE.0 * 0.25 - GRID_CELL_SIZE.0 as f32 + (GRID_CELL_SIZE.0 as usize * x) as f32, y: 9f32 * GRID_CELL_SIZE.1 as f32 }, ));
+        }
+        for x in 0..self.taken_white_pieces.len() {
+            graphics::draw(ctx, &self.sprites[&self.taken_white_pieces[x]], (ggez::mint::Point2 { x: SCREEN_SIZE.0 * 0.25 - GRID_CELL_SIZE.0 as f32 + (GRID_CELL_SIZE.0 as usize * x) as f32, y: 10f32 * GRID_CELL_SIZE.1 as f32 }, ));
         }
 
+        // draw promotion selectors
+        let current_color = self.board.active_color;
+        let turn_idx = if current_color == Colour::White { 0 } else { 1 };
+        let promo_y = match self.board.promotion[turn_idx] {
+            PieceType::Queen(current_color) => (SCREEN_SIZE.0 * 0.75) as i32,
+            PieceType::Rook(current_color) => (SCREEN_SIZE.0 * 0.75 + GRID_CELL_SIZE.0 as f32) as i32,
+            PieceType::Bishop(current_color) => (SCREEN_SIZE.0 * 0.75 + GRID_CELL_SIZE.0 as f32 * 2f32) as i32,
+            PieceType::Knight(current_color) => (SCREEN_SIZE.0 * 0.75 + GRID_CELL_SIZE.0 as f32 * 3f32) as i32,
+            _ => panic!(),
+        };
+        let rectangle = graphics::Mesh::new_rectangle(ctx, 
+            graphics::DrawMode::fill(), 
+            graphics::Rect::new_i32(
+                promo_y,
+                (GRID_CELL_SIZE.1 * 3) as i32,
+                GRID_CELL_SIZE.0 as i32,
+                GRID_CELL_SIZE.1 as i32,
+            ), BLACK_RED)?;
+        graphics::draw(ctx, &rectangle, (ggez::mint::Point2 { x: 0.0, y: 0.0 }, ));
+
+        graphics::draw(ctx, &self.sprites[&PieceType::Queen(self.board.active_color)], (ggez::mint::Point2 { x: SCREEN_SIZE.0 * 0.75, y: 3f32 * GRID_CELL_SIZE.1 as f32 }, ));
+        graphics::draw(ctx, &self.sprites[&PieceType::Rook(self.board.active_color)], (ggez::mint::Point2 { x: SCREEN_SIZE.0 * 0.75 + GRID_CELL_SIZE.0 as f32, y: 3f32 * GRID_CELL_SIZE.1 as f32 }, ));
+        graphics::draw(ctx, &self.sprites[&PieceType::Bishop(self.board.active_color)], (ggez::mint::Point2 { x: SCREEN_SIZE.0 * 0.75 + GRID_CELL_SIZE.0 as f32 * 2f32, y: 3f32 * GRID_CELL_SIZE.1 as f32 }, ));
+        graphics::draw(ctx, &self.sprites[&PieceType::Knight(self.board.active_color)], (ggez::mint::Point2 { x: SCREEN_SIZE.0 * 0.75 + GRID_CELL_SIZE.0 as f32 * 3f32, y: 3f32 * GRID_CELL_SIZE.1 as f32 }, ));
+        
         // draw text with dark gray colouring and center position
         graphics::draw(ctx, &state_text, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
             .dest(ggez::mint::Point2 {
                 x: SCREEN_SIZE.0 * 0.75,
                 y: 0f32,
+            }));
+        graphics::draw(ctx, &turn_text, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
+            .dest(ggez::mint::Point2 {
+                x: SCREEN_SIZE.0 * 0.75,
+                y: GRID_CELL_SIZE.1 as f32 * 1f32,
+            }));
+        graphics::draw(ctx, &promotion_text, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
+            .dest(ggez::mint::Point2 {
+                x: SCREEN_SIZE.0 * 0.75,
+                y: GRID_CELL_SIZE.1 as f32 * 2f32,
             }));
 
         // render updated graphics
@@ -163,10 +222,10 @@ impl event::EventHandler for AppState {
     /// Update game on mouse click
     fn mouse_button_up_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
         if button == MouseButton::Left {
-            if x <= SCREEN_SIZE.0 * 0.75 && x >= SCREEN_SIZE.0 * 0.25 {
+            if x <= SCREEN_SIZE.0 * 0.75 && x >= SCREEN_SIZE.0 * 0.25 && y < SCREEN_SIZE.1 * 2f32 / 3f32 {
                 let pos_x = x - (SCREEN_SIZE.0 * 0.25f32);
                 let pos_x = (pos_x / GRID_CELL_SIZE.0 as f32).ceil();
-                let pos_y = (y / GRID_CELL_SIZE.1 as f32).ceil();
+                let pos_y = 9f32 - (y / GRID_CELL_SIZE.1 as f32).ceil();
 
                 if self.highlighted_pos.contains(&(pos_x as isize, pos_y as isize)) {
                     if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) {
@@ -212,7 +271,30 @@ impl event::EventHandler for AppState {
                     }
                 }
             }
-            /* check click position and update board accordingly */
+
+            if x >= SCREEN_SIZE.0 * 0.25 - GRID_CELL_SIZE.0 as f32 && y >= (GRID_CELL_SIZE.1 * 9) as f32 {
+                let pos_x = x - (SCREEN_SIZE.0 * 0.25 - GRID_CELL_SIZE.0 as f32);
+                let pos_x = (pos_x / GRID_CELL_SIZE.0 as f32).ceil();
+                let pos_y = y - ((GRID_CELL_SIZE.1 * 9) as f32);
+                let pos_y = (pos_y / GRID_CELL_SIZE.0 as f32).ceil();
+
+                if (pos_y == 1f32 && pos_x <= self.taken_black_pieces.len() as f32) || (pos_y == 2f32 && pos_x <= self.taken_white_pieces.len() as f32) {
+                    self.selected_pos = ((pos_x - 1f32) as isize, pos_y as isize + 8);
+                }
+            } 
+
+            if x >= SCREEN_SIZE.0 * 0.75 && x <= SCREEN_SIZE.0 * 0.75 + (GRID_CELL_SIZE.0 * 4) as f32 && y >= (GRID_CELL_SIZE.1 * 3) as f32 && y < (GRID_CELL_SIZE.1 * 4) as f32 {
+                let pos_x = x - (SCREEN_SIZE.0 * 0.75 as f32);
+                let pos_x = (pos_x / GRID_CELL_SIZE.0 as f32).ceil();
+
+                match pos_x {
+                    1f32 => self.board.set_promotion("queen".to_string()),
+                    2f32 => self.board.set_promotion("rook".to_string()),
+                    3f32 => self.board.set_promotion("bishop".to_string()),
+                    4f32 => self.board.set_promotion("knight".to_string()),
+                    _ => panic!(),
+                };
+            }
         }
     }
 }
@@ -220,7 +302,7 @@ impl event::EventHandler for AppState {
 fn int_to_pos_tuple(x: isize) -> (isize, isize) {
     let pos_x = &x % 8;
     let pos_y = ((x as f32 / 8.0).trunc()) as isize; 
-    (pos_x + 1, pos_y + 1)
+    (pos_x + 1, 9 - (pos_y + 1))
 }
 
 pub fn main() -> GameResult {
