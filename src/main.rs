@@ -11,6 +11,8 @@ use std::path;
 use eliasfl_chess::{Game, GameState, Color as Colour, Piece as PieceType, Position};
 use ggez::event::{MouseButton};
 use std::collections::HashMap;
+use std::collections::HashSet;
+
 
 /// A chess board is 8x8 tiles.
 const GRID_SIZE: (i16, i16) = (8, 8);
@@ -29,6 +31,18 @@ const WHITE: Color = Color::new(188.0/255.0, 140.0/255.0, 76.0/255.0, 1.0);
 const BLACK_RED: Color = Color::new(255.0/255.0, 96.0/255.0, 78.0/255.0, 1.0);
 const WHITE_RED: Color = Color::new(215.0/255.0, 69.0/255.0, 60.0/255.0, 1.0);
 
+// Enumerable over possible modifications for a player. 
+enum Mods {
+    CrazyHouse(PieceType),
+    Atomic(PieceType),
+    Sniper(PieceType),
+    Madrasi(PieceType),
+    KingOfTheHill,
+    Extinction(PieceType),
+    Hidden(PieceType),
+    TripleCheck(PieceType)
+}
+
 /// GUI logic and event implementation structure. 
 struct AppState {
     sprites: HashMap<PieceType, graphics::Image>,
@@ -37,6 +51,8 @@ struct AppState {
     highlighted_pos: Vec<(isize, isize)>,
     taken_black_pieces: Vec<PieceType>,
     taken_white_pieces: Vec<PieceType>,
+    white_mods: HashSet<Mods>,
+    black_mods: HashSet<Mods>,
 }
 
 impl AppState {
@@ -58,6 +74,8 @@ impl AppState {
             highlighted_pos: Vec::new(),
             taken_black_pieces: Vec::new(),
             taken_white_pieces: Vec::new(),
+            white_mods: HashSet::new(),
+            black_mods: HashSet::new(),
         };
 
         Ok(state)
@@ -256,7 +274,11 @@ impl event::EventHandler for AppState {
                             },
                         }
                     }
-                    self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                    if self.board.board.contains_key(&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}) {
+                        self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                    } else {
+                        if self.selected_pos.1 == 9 { self.taken_black_pieces.remove(self.selected_pos.0 as usize); }
+                    }
                     self.selected_pos = (0, 0);
                     self.highlighted_pos = Vec::new();
                     return;
