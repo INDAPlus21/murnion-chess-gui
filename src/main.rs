@@ -32,6 +32,7 @@ const BLACK_RED: Color = Color::new(255.0/255.0, 96.0/255.0, 78.0/255.0, 1.0);
 const WHITE_RED: Color = Color::new(215.0/255.0, 69.0/255.0, 60.0/255.0, 1.0);
 
 // Enumerable over possible modifications for a player. 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Mods {
     CrazyHouse(PieceType),
     Atomic(PieceType),
@@ -246,7 +247,7 @@ impl event::EventHandler for AppState {
                 let pos_y = 9f32 - (y / GRID_CELL_SIZE.1 as f32).ceil();
 
                 if self.highlighted_pos.contains(&(pos_x as isize, pos_y as isize)) {
-                    if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) {
+                    if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) && self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}].colour() == self.board.active_color {
                         match self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }] {
                             PieceType::Queen(colour) => match colour {
                                 Colour::Black => self.taken_black_pieces.push(PieceType::Queen(Colour::Black)),
@@ -277,7 +278,16 @@ impl event::EventHandler for AppState {
                     if self.board.board.contains_key(&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}) {
                         self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
                     } else {
-                        if self.selected_pos.1 == 9 { self.taken_black_pieces.remove(self.selected_pos.0 as usize); }
+                        if self.selected_pos.1 == 9 { 
+                            self.board.board.insert(Position { file: pos_x as u8, rank: pos_y as u8 }, self.taken_black_pieces[self.selected_pos.0 as usize].type_as_colour(Colour::White));
+                            self.taken_black_pieces.remove(self.selected_pos.0 as usize); 
+                            self.board.active_color = Colour::Black;
+                        }
+                        else { 
+                            self.board.board.insert(Position { file: pos_x as u8, rank: pos_y as u8 }, self.taken_white_pieces[self.selected_pos.0 as usize].type_as_colour(Colour::Black));
+                            self.taken_white_pieces.remove(self.selected_pos.0 as usize); 
+                            self.board.active_color = Colour::White;
+                        }
                     }
                     self.selected_pos = (0, 0);
                     self.highlighted_pos = Vec::new();
@@ -302,6 +312,30 @@ impl event::EventHandler for AppState {
 
                 if (pos_y == 1f32 && pos_x <= self.taken_black_pieces.len() as f32) || (pos_y == 2f32 && pos_x <= self.taken_white_pieces.len() as f32) {
                     self.selected_pos = ((pos_x - 1f32) as isize, pos_y as isize + 8);
+                    match self.board.active_color {
+                        Colour::Black => {
+                            if self.black_mods.contains(&Mods::CrazyHouse(self.taken_white_pieces[self.selected_pos.0 as usize])) && self.selected_pos.1 == 10 {
+                                for x in 1..9 {
+                                    for y in 1..9 {
+                                        if !self.board.board.contains_key(&Position { file: x as u8, rank: y as u8}) {
+                                            self.highlighted_pos.push((x, y));
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        Colour::White => {
+                            if self.white_mods.contains(&Mods::CrazyHouse(self.taken_black_pieces[self.selected_pos.0 as usize])) && self.selected_pos.1 == 9 {
+                                for x in 1..9 {
+                                    for y in 1..9 {
+                                        if !self.board.board.contains_key(&Position { file: x as u8, rank: y as u8}) {
+                                            self.highlighted_pos.push((x, y));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             } 
 
@@ -317,6 +351,35 @@ impl event::EventHandler for AppState {
                     _ => panic!(),
                 };
             }
+        }
+    }
+}
+
+trait Gets {
+    fn colour(&self) -> Colour;
+    fn type_as_colour(&self, col: Colour) -> PieceType;
+}
+
+impl Gets for PieceType {
+    fn colour(&self) -> Colour {
+        match self {
+            PieceType::Bishop(_colour) => *_colour,
+            PieceType::Rook(_colour) => *_colour,
+            PieceType::Pawn(_colour) => *_colour,
+            PieceType::Knight(_colour) => *_colour,
+            PieceType::Queen(_colour) => *_colour,
+            PieceType::King(_colour) => *_colour,
+        }
+    }
+
+    fn type_as_colour(&self, col: Colour) -> PieceType {
+        match self {
+            PieceType::Bishop(_colour) => PieceType::Bishop(col),
+            PieceType::Rook(_colour) => PieceType::Rook(col),
+            PieceType::Pawn(_colour) => PieceType::Pawn(col),
+            PieceType::Knight(_colour) => PieceType::Knight(col),
+            PieceType::Queen(_colour) => PieceType::Queen(col),
+            PieceType::King(_colour) => PieceType::King(col),
         }
     }
 }
