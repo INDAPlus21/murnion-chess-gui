@@ -54,6 +54,7 @@ struct AppState {
     taken_white_pieces: Vec<PieceType>,
     white_mods: HashSet<Mods>,
     black_mods: HashSet<Mods>,
+    triple_check_counter: (u8, u8)
 }
 
 impl AppState {
@@ -77,6 +78,7 @@ impl AppState {
             taken_white_pieces: Vec::new(),
             white_mods: HashSet::new(),
             black_mods: HashSet::new(),
+            triple_check_counter: (0, 0)
         };
 
         Ok(state)
@@ -98,6 +100,10 @@ impl AppState {
         sprites.push(((PieceType::Bishop(Colour::White)), "/white_bishop.png".to_string()));
         sprites.push(((PieceType::Knight(Colour::White)), "/white_knight.png".to_string()));
         sprites
+    }
+
+    fn end_game(&self, winner: Option<Colour>) {
+        unimplemented!();
     }
 }
 
@@ -276,6 +282,45 @@ impl event::EventHandler for AppState {
                         }
                     }
                     if self.board.board.contains_key(&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}) {
+                        if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) {
+                            match self.board.active_color {
+                                Colour::Black => {
+                                    if self.black_mods.contains(&Mods::Atomic(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
+                                        for x in 0..2 {
+                                            for y in 0..2 {
+                                                if x == 1 && y == 1 { continue; }
+                                                if self.board.board.contains_key(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }) {
+                                                    match self.board.board[&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }] {
+                                                        PieceType::Pawn(_colour) => (),
+                                                        _ => { self.board.board.remove(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }); },
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) && !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) {
+                                            self.end_game(None);
+                                        } else if !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) {
+                                            self.end_game(Some(Colour::Black));
+                                        } else if !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) {
+                                            self.end_game(Some(Colour::White));
+                                        }
+                                    }
+                                    if self.black_mods.contains(&Mods::Extinction(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) {
+                                        let mut theoretical_board = self.board.board.clone();
+                                        theoretical_board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
+                                        if theoretical_board.values().any(|x| x == &self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]) {
+                                            self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                                            self.end_game(Some(Colour::Black));
+                                        }
+                                    }
+                                    if self.black_mods.contains(&Mods::Sniper(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
+
+                                    }
+                                    //if self.white_mods.contains(&Mods::Madrasi)
+                                }
+                                Colour::White => { }
+                            }
+                        }
                         self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
                     } else {
                         if self.selected_pos.1 == 9 { 
