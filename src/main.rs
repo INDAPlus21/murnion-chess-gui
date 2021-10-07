@@ -37,7 +37,6 @@ enum Mods {
     CrazyHouse(PieceType),
     Atomic(PieceType),
     Sniper(PieceType),
-    Madrasi(PieceType),
     KingOfTheHill,
     Extinction(PieceType),
     Hidden(PieceType),
@@ -319,7 +318,6 @@ impl event::EventHandler for AppState {
                                     if self.black_mods.contains(&Mods::Sniper(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
                                         sniper = true;
                                     }
-                                    //if self.white_mods.contains(&Mods::Madrasi)
                                 }
                                 Colour::White => { }
                             }
