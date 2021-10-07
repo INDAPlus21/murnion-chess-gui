@@ -252,7 +252,9 @@ impl event::EventHandler for AppState {
                 let pos_y = 9f32 - (y / GRID_CELL_SIZE.1 as f32).ceil();
 
                 if self.highlighted_pos.contains(&(pos_x as isize, pos_y as isize)) {
+                    let mut taking_move = false;
                     if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) && self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}].colour() == self.board.active_color {
+                        taking_move = true;
                         match self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }] {
                             PieceType::Queen(colour) => match colour {
                                 Colour::Black => self.taken_black_pieces.push(PieceType::Queen(Colour::Black)),
@@ -280,19 +282,33 @@ impl event::EventHandler for AppState {
                             },
                         }
                     }
-                    if self.board.board.contains_key(&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}) {
+                    if self.board.board.contains_key(&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}) && self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}].colour() == self.board.active_color {
                         let mut sniper = false;
                         if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) {
                             match self.board.active_color {
                                 Colour::Black => {
                                     if self.black_mods.contains(&Mods::Atomic(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
-                                        for x in 0..2 {
-                                            for y in 0..2 {
+                                        if self.black_mods.contains(&Mods::Extinction(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) {
+                                            let mut theoretical_board = self.board.board.clone();
+                                            theoretical_board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
+                                            if theoretical_board.values().any(|x| x == &self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]) {
+                                                self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                                                self.end_game(Some(Colour::Black));
+                                            }
+                                        }
+                                        if self.black_mods.contains(&Mods::Sniper(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
+                                            sniper = true;
+                                        }
+                                        for x in 0..=2 {
+                                            for y in 0..=2 {
                                                 if x == 1 && y == 1 { continue; }
                                                 if self.board.board.contains_key(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }) {
                                                     match self.board.board[&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }] {
                                                         PieceType::Pawn(_colour) => (),
-                                                        _ => { self.board.board.remove(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }); },
+                                                        _ => { 
+                                                            self.taken_white_pieces.push(self.board.board[&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }]);
+                                                            self.board.board.remove(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }); 
+                                                        },
                                                     }
                                                 }
                                             }
@@ -304,28 +320,30 @@ impl event::EventHandler for AppState {
                                         } else if !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) {
                                             self.end_game(Some(Colour::White));
                                         }
-                                    }
-                                    if self.black_mods.contains(&Mods::Extinction(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) {
-                                        let mut theoretical_board = self.board.board.clone();
-                                        theoretical_board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
-                                        if theoretical_board.values().any(|x| x == &self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]) {
-                                            self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
-                                            self.end_game(Some(Colour::Black));
-                                        }
-                                    }
-                                    if self.black_mods.contains(&Mods::Sniper(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
-                                        sniper = true;
                                     }
                                 }
                                 Colour::White => {
                                     if self.white_mods.contains(&Mods::Atomic(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
-                                        for x in 0..2 {
-                                            for y in 0..2 {
-                                                if x == 1 && y == 1 { continue; }
+                                        if self.white_mods.contains(&Mods::Extinction(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) {
+                                            let mut theoretical_board = self.board.board.clone();
+                                            theoretical_board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
+                                            if theoretical_board.values().any(|x| x == &self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]) {
+                                                self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                                                self.end_game(Some(Colour::White));
+                                            }
+                                        }
+                                        if self.white_mods.contains(&Mods::Sniper(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
+                                            sniper = true;
+                                        }
+                                        for x in 0..=2 {
+                                            for y in 0..=2 {
                                                 if self.board.board.contains_key(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }) {
                                                     match self.board.board[&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }] {
                                                         PieceType::Pawn(_colour) => (),
-                                                        _ => { self.board.board.remove(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }); },
+                                                        _ => { 
+                                                            self.taken_black_pieces.push(self.board.board[&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }]);
+                                                            self.board.board.remove(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }); 
+                                                        },
                                                     }
                                                 }
                                             }
@@ -338,50 +356,56 @@ impl event::EventHandler for AppState {
                                             self.end_game(Some(Colour::White));
                                         }
                                     }
-                                    if self.white_mods.contains(&Mods::Extinction(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) {
-                                        let mut theoretical_board = self.board.board.clone();
-                                        theoretical_board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
-                                        if theoretical_board.values().any(|x| x == &self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]) {
-                                            self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
-                                            self.end_game(Some(Colour::White));
-                                        }
-                                    }
-                                    if self.white_mods.contains(&Mods::Sniper(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
-                                        sniper = true;
-                                    }
                                 }
                             }
                         }
-                        self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
-                        let p = self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }];
+                        let successful = self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string()).is_ok();
                         if sniper {
                             self.board.board.insert(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }, self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]);
                             self.board.board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
                         }
-                        match self.board.active_color {
-                            Colour::White => { if (self.black_mods.contains(&Mods::TripleCheck(p)) && self.board.get_game_state() == GameState::Check) {
-                                self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
-                                if self.triple_check_counter.1 >= 3 {
-                                    self.end_game(Some(Colour::Black));
+                        if successful {
+                            match self.board.active_color { //Triple check doesnt check its actually the piece making the check.
+                                Colour::White => { 
+                                    let p = self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }];
+                                    if self.black_mods.contains(&Mods::TripleCheck(p)) && self.board.get_game_state() == GameState::Check {
+                                        self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
+                                        if self.triple_check_counter.1 >= 3 {
+                                            self.end_game(Some(Colour::Black));
+                                        }
+                                    }
+                                    if (self.white_mods.contains(&Mods::Atomic(p))) && !sniper && taking_move {
+                                        self.taken_black_pieces.push(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]);
+                                        self.board.board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
+                                    } 
+                                },
+                                Colour::Black => { 
+                                    let p = self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }];
+                                    if self.white_mods.contains(&Mods::TripleCheck(p)) && self.board.get_game_state() == GameState::Check {
+                                        self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
+                                        if self.triple_check_counter.1 >= 3 {
+                                            self.end_game(Some(Colour::White));
+                                        }
+                                    }
+                                    if (self.white_mods.contains(&Mods::Atomic(p))) && !sniper && taking_move {
+                                        self.taken_white_pieces.push(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]);
+                                        self.board.board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
+                                    } 
                                 }
-                            } },
-                            Colour::Black => { if (self.white_mods.contains(&Mods::TripleCheck(p)) && self.board.get_game_state() == GameState::Check) {
-                                self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
-                                if self.triple_check_counter.1 >= 3 {
-                                    self.end_game(Some(Colour::White));
-                                }
-                            } }
+                            }
                         }
                     } else {
                         if self.selected_pos.1 == 9 { 
                             self.board.board.insert(Position { file: pos_x as u8, rank: pos_y as u8 }, self.taken_black_pieces[self.selected_pos.0 as usize].type_as_colour(Colour::White));
                             self.taken_black_pieces.remove(self.selected_pos.0 as usize); 
                             self.board.active_color = Colour::Black;
+                            self.board.get_game_state();
                         }
-                        else { 
+                        else if self.selected_pos.1 == 10 { 
                             self.board.board.insert(Position { file: pos_x as u8, rank: pos_y as u8 }, self.taken_white_pieces[self.selected_pos.0 as usize].type_as_colour(Colour::Black));
                             self.taken_white_pieces.remove(self.selected_pos.0 as usize); 
                             self.board.active_color = Colour::White;
+                            self.board.get_game_state();
                         }
                     }
                     self.selected_pos = (0, 0);
@@ -503,7 +527,10 @@ pub fn main() -> GameResult {
     let (contex, event_loop) = &mut context_builder.build()?;
 
     let state = &mut AppState::new(contex)?;
-    state.white_mods.insert(Mods::Sniper(PieceType::Pawn(Colour::White)));
-    state.white_mods.insert(Mods::TripleCheck(PieceType::Queen(Colour::White)));
+    state.white_mods.insert(Mods::CrazyHouse(PieceType::Queen(Colour::Black)));
+    state.white_mods.insert(Mods::Atomic(PieceType::Rook(Colour::White)));
+    state.white_mods.insert(Mods::Sniper(PieceType::Bishop(Colour::White)));
+    state.white_mods.insert(Mods::Sniper(PieceType::Knight(Colour::White)));
+    state.white_mods.insert(Mods::Atomic(PieceType::Knight(Colour::White)));
     event::run(contex, event_loop, state)       // Run window event loop
 }
