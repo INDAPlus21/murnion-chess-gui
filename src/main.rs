@@ -55,6 +55,7 @@ struct AppState {
     white_mods: HashSet<Mods>,
     black_mods: HashSet<Mods>,
     triple_check_counter: (u8, u8)
+    madrasi_tiles: Vec<(isize, isize)>,
 }
 
 impl AppState {
@@ -78,7 +79,8 @@ impl AppState {
             taken_white_pieces: Vec::new(),
             white_mods: HashSet::new(),
             black_mods: HashSet::new(),
-            triple_check_counter: (0, 0)
+            triple_check_counter: (0, 0),
+            madrasi_tiles: Vec::new(),
         };
 
         Ok(state)
@@ -325,7 +327,21 @@ impl event::EventHandler for AppState {
                         self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
                         if sniper {
                             self.board.board.insert(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }, self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]);
-                            self.board.board.remove((&Position { file: pos_x as u8, rank: pos_y as u8 }));
+                            self.board.board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
+                        }
+                        match self.board.active_color {
+                            Colour::White => { if (self.black_mods.contains(&Mods::TripleCheck(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) && self.board.get_game_state == GameState::Check) {
+                                self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
+                                if self.triple_check_counter.1 >= 3 {
+                                    self.end_game(Some(Colour::Black));
+                                }
+                            } },
+                            Colour::Black => { if (self.white_mods.contains(&Mods::TripleCheck(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) && self.board.get_game_state == GameState::Check) {
+                                self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
+                                if self.triple_check_counter.1 >= 3 {
+                                    self.end_game(Some(Colour::White));
+                                }
+                            } }
                         }
                     } else {
                         if self.selected_pos.1 == 9 { 
