@@ -39,7 +39,7 @@ enum Mods {
     Sniper(PieceType),
     KingOfTheHill,
     Extinction(PieceType),
-    Hidden(PieceType),
+    // Hidden(PieceType), Only works with networking... will need to be rethought somewhat
     TripleCheck(PieceType)
 }
 
@@ -54,7 +54,6 @@ struct AppState {
     white_mods: HashSet<Mods>,
     black_mods: HashSet<Mods>,
     triple_check_counter: (u8, u8),
-    madrasi_tiles: Vec<(isize, isize)>,
 }
 
 impl AppState {
@@ -79,7 +78,6 @@ impl AppState {
             white_mods: HashSet::new(),
             black_mods: HashSet::new(),
             triple_check_counter: (0, 0),
-            madrasi_tiles: Vec::new(),
         };
 
         Ok(state)
@@ -506,5 +504,6 @@ pub fn main() -> GameResult {
 
     let state = &mut AppState::new(contex)?;
     state.white_mods.insert(Mods::Sniper(PieceType::Pawn(Colour::White)));
+    state.white_mods.insert(Mods::TripleCheck(PieceType::Queen(Colour::White)));
     event::run(contex, event_loop, state)       // Run window event loop
 }
