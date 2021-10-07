@@ -369,9 +369,11 @@ impl event::EventHandler for AppState {
                                 Colour::White => { 
                                     let p = self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }];
                                     if self.black_mods.contains(&Mods::TripleCheck(p)) && self.board.get_game_state() == GameState::Check {
-                                        self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
-                                        if self.triple_check_counter.1 >= 3 {
-                                            self.end_game(Some(Colour::Black));
+                                        if self.board.board.iter_mut().any(|(k, v)| v == &mut PieceType::King(Colour::White) && p.valid_destinations(&Position { file: pos_x as u8, rank: pos_y as u8 }).contains(&k)) {
+                                            self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
+                                            if self.triple_check_counter.1 >= 3 {
+                                                self.end_game(Some(Colour::Black));
+                                            }
                                         }
                                     }
                                     if (self.white_mods.contains(&Mods::Atomic(p))) && !sniper && taking_move {
@@ -382,9 +384,11 @@ impl event::EventHandler for AppState {
                                 Colour::Black => { 
                                     let p = self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }];
                                     if self.white_mods.contains(&Mods::TripleCheck(p)) && self.board.get_game_state() == GameState::Check {
-                                        self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
-                                        if self.triple_check_counter.1 >= 3 {
-                                            self.end_game(Some(Colour::White));
+                                        if self.board.board.iter_mut().any(|(k, v)| v == &mut PieceType::King(Colour::Black) && p.valid_destinations(&Position { file: pos_x as u8, rank: pos_y as u8 }).contains(&k)) {
+                                            self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
+                                            if self.triple_check_counter.1 >= 3 {
+                                                self.end_game(Some(Colour::White));
+                                            }
                                         }
                                     }
                                     if (self.white_mods.contains(&Mods::Atomic(p))) && !sniper && taking_move {
@@ -408,11 +412,21 @@ impl event::EventHandler for AppState {
                             self.board.get_game_state();
                         }
                     }
+
                     self.selected_pos = (0, 0);
                     self.highlighted_pos = Vec::new();
                     return;
                 }
-
+                let mut real_board_but_copy = self.board.board.clone();
+                for (k, v) in real_board_but_copy.iter_mut() {
+                    let knig = vec![Position::from_string("e4".to_owned()).unwrap(), Position::from_string("e5".to_owned()).unwrap(), Position::from_string("d4".to_owned()).unwrap(), Position::from_string("d5".to_owned()).unwrap()];
+                    if v == &mut PieceType::King(Colour::White) && knig.contains(k) {
+                        self.end_game(Some(Colour::White));
+                    }
+                    if v == &mut PieceType::King(Colour::Black) && knig.contains(k) {
+                        self.end_game(Some(Colour::Black));
+                    }
+                }
                 self.highlighted_pos = Vec::new();
                 self.selected_pos = (pos_x as isize, pos_y as isize);
                 if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) {
