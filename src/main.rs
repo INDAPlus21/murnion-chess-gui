@@ -282,6 +282,7 @@ impl event::EventHandler for AppState {
                         }
                     }
                     if self.board.board.contains_key(&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}) {
+                        let mut sniper = false;
                         if self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }) {
                             match self.board.active_color {
                                 Colour::Black => {
@@ -314,7 +315,7 @@ impl event::EventHandler for AppState {
                                         }
                                     }
                                     if self.black_mods.contains(&Mods::Sniper(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
-
+                                        sniper = true;
                                     }
                                     //if self.white_mods.contains(&Mods::Madrasi)
                                 }
@@ -322,6 +323,10 @@ impl event::EventHandler for AppState {
                             }
                         }
                         self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                        if sniper {
+                            self.board.board.insert(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }, self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]);
+                            self.board.board.remove((&Position { file: pos_x as u8, rank: pos_y as u8 }));
+                        }
                     } else {
                         if self.selected_pos.1 == 9 { 
                             self.board.board.insert(Position { file: pos_x as u8, rank: pos_y as u8 }, self.taken_black_pieces[self.selected_pos.0 as usize].type_as_colour(Colour::White));
@@ -359,7 +364,7 @@ impl event::EventHandler for AppState {
                     self.selected_pos = ((pos_x - 1f32) as isize, pos_y as isize + 8);
                     match self.board.active_color {
                         Colour::Black => {
-                            if self.black_mods.contains(&Mods::CrazyHouse(self.taken_white_pieces[self.selected_pos.0 as usize])) && self.selected_pos.1 == 10 {
+                            if self.selected_pos.1 == 10 && self.black_mods.contains(&Mods::CrazyHouse(self.taken_white_pieces[self.selected_pos.0 as usize])) {
                                 for x in 1..9 {
                                     for y in 1..9 {
                                         if !self.board.board.contains_key(&Position { file: x as u8, rank: y as u8}) {
@@ -370,7 +375,7 @@ impl event::EventHandler for AppState {
                             }
                         },
                         Colour::White => {
-                            if self.white_mods.contains(&Mods::CrazyHouse(self.taken_black_pieces[self.selected_pos.0 as usize])) && self.selected_pos.1 == 9 {
+                            if self.selected_pos.1 == 9 && self.white_mods.contains(&Mods::CrazyHouse(self.taken_black_pieces[self.selected_pos.0 as usize])) {
                                 for x in 1..9 {
                                     for y in 1..9 {
                                         if !self.board.board.contains_key(&Position { file: x as u8, rank: y as u8}) {
