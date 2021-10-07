@@ -53,7 +53,7 @@ struct AppState {
     taken_white_pieces: Vec<PieceType>,
     white_mods: HashSet<Mods>,
     black_mods: HashSet<Mods>,
-    triple_check_counter: (u8, u8)
+    triple_check_counter: (u8, u8),
     madrasi_tiles: Vec<(isize, isize)>,
 }
 
@@ -319,22 +319,55 @@ impl event::EventHandler for AppState {
                                         sniper = true;
                                     }
                                 }
-                                Colour::White => { }
+                                Colour::White => {
+                                    if self.white_mods.contains(&Mods::Atomic(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
+                                        for x in 0..2 {
+                                            for y in 0..2 {
+                                                if x == 1 && y == 1 { continue; }
+                                                if self.board.board.contains_key(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }) {
+                                                    match self.board.board[&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }] {
+                                                        PieceType::Pawn(_colour) => (),
+                                                        _ => { self.board.board.remove(&Position { file: (pos_x + x as f32 - 1f32) as u8, rank: (pos_y + y as f32 - 1f32) as u8 }); },
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) && !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) {
+                                            self.end_game(None);
+                                        } else if !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) {
+                                            self.end_game(Some(Colour::Black));
+                                        } else if !self.board.board.values().any(|x| x == &PieceType::King(Colour::White)) {
+                                            self.end_game(Some(Colour::White));
+                                        }
+                                    }
+                                    if self.white_mods.contains(&Mods::Extinction(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) {
+                                        let mut theoretical_board = self.board.board.clone();
+                                        theoretical_board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
+                                        if theoretical_board.values().any(|x| x == &self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]) {
+                                            self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                                            self.end_game(Some(Colour::White));
+                                        }
+                                    }
+                                    if self.white_mods.contains(&Mods::Sniper(self.board.board[&Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8}])) {
+                                        sniper = true;
+                                    }
+                                }
                             }
                         }
                         self.board.make_move(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }.to_string(), Position { file: pos_x as u8, rank: pos_y as u8 }.to_string());
+                        let p = self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }];
                         if sniper {
                             self.board.board.insert(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }, self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]);
                             self.board.board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
                         }
                         match self.board.active_color {
-                            Colour::White => { if (self.black_mods.contains(&Mods::TripleCheck(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) && self.board.get_game_state == GameState::Check) {
+                            Colour::White => { if (self.black_mods.contains(&Mods::TripleCheck(p)) && self.board.get_game_state() == GameState::Check) {
                                 self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
                                 if self.triple_check_counter.1 >= 3 {
                                     self.end_game(Some(Colour::Black));
                                 }
                             } },
-                            Colour::Black => { if (self.white_mods.contains(&Mods::TripleCheck(self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }])) && self.board.get_game_state == GameState::Check) {
+                            Colour::Black => { if (self.white_mods.contains(&Mods::TripleCheck(p)) && self.board.get_game_state() == GameState::Check) {
                                 self.triple_check_counter = (self.triple_check_counter.0, self.triple_check_counter.1 + 1);
                                 if self.triple_check_counter.1 >= 3 {
                                     self.end_game(Some(Colour::White));
@@ -472,5 +505,6 @@ pub fn main() -> GameResult {
     let (contex, event_loop) = &mut context_builder.build()?;
 
     let state = &mut AppState::new(contex)?;
+    state.white_mods.insert(Mods::Sniper(PieceType::Pawn(Colour::White)));
     event::run(contex, event_loop, state)       // Run window event loop
 }
