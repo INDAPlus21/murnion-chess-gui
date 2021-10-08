@@ -26,7 +26,7 @@ const GRID_CELL_SIZE: (i16, i16) = (45, 45);
 
 /// Size of the application window.
 const SCREEN_SIZE: (f32, f32) = (
-    GRID_SIZE.0 as f32 * GRID_CELL_SIZE.0 as f32 * 2f32,
+    GRID_SIZE.0 as f32 * GRID_CELL_SIZE.0 as f32 * 3.0,
     GRID_SIZE.1 as f32 * GRID_CELL_SIZE.1 as f32 * 1.5,
 );
 
@@ -194,6 +194,14 @@ impl event::EventHandler for AppState {
                     graphics::TextFragment::from(format!("Current promotion:")
                 )
                 .scale(graphics::Scale { x: 20.0, y: 20.0 }));
+            let black_mod_title = graphics::Text::new(
+                graphics::TextFragment::from(format!("Black mods:")
+            )
+                .scale(graphics::Scale { x: 20.0, y: 20.0 }));
+            let white_mod_title = graphics::Text::new(
+                graphics::TextFragment::from(format!("White mods:")
+            )
+                .scale(graphics::Scale { x: 20.0, y: 20.0 }));
 
             // get size of text
             let text_dimensions = state_text.dimensions(ctx);
@@ -298,6 +306,47 @@ impl event::EventHandler for AppState {
                     x: SCREEN_SIZE.0 * 0.75,
                     y: GRID_CELL_SIZE.1 as f32 * 2f32,
                 }));
+            graphics::draw(ctx, &white_mod_title, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
+                .dest(ggez::mint::Point2 {
+                    x: 0f32,
+                    y: 0f32,
+                }));
+            {
+                let mut x = 0.0;
+            for modi in self.white_mods.iter() {
+                let text = graphics::Text::new(
+                    graphics::TextFragment::from(format!("{:?} {:?}", modi.to_string(), modi.get_piece(Colour::White))
+                )
+                    .scale(graphics::Scale { x: 20.0, y: 20.0 }));
+                    x += 1.0;
+                graphics::draw(ctx, &text, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
+                .dest(ggez::mint::Point2 {
+                    x: 0f32,
+                    y: 25f32 * x,
+                }));
+                } 
+            }
+            graphics::draw(ctx, &black_mod_title, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
+                .dest(ggez::mint::Point2 {
+                    x: 0f32,
+                    y: SCREEN_SIZE.1 * 0.5,
+                }));
+                {
+                    let mut x = 0.0;
+                for modi in self.black_mods.iter() {
+                    let text = graphics::Text::new(
+                        graphics::TextFragment::from(format!("{:?} {:?}", modi.to_string(), modi.get_piece(Colour::Black))
+                    )
+                        .scale(graphics::Scale { x: 20.0, y: 20.0 }));
+                        x += 1.0;
+                    graphics::draw(ctx, &text, DrawParam::default().color([0.0, 0.0, 0.0, 1.0].into())
+                    .dest(ggez::mint::Point2 {
+                        x: 0f32,
+                        y: SCREEN_SIZE.1 * 0.5 + 25f32 * x,
+                    }));
+                    } 
+                }
+            
             
             // draw score if relevant
             if (self.screen == ScreenState::ScoreScreen) {
@@ -366,6 +415,7 @@ impl event::EventHandler for AppState {
             graphics::draw(ctx, &bounding_box, (ggez::mint::Point2 { x: 0.0, y: ((SCREEN_SIZE.1 - (GRID_CELL_SIZE.1 as f32 * 2f32)) / 3f32) + GRID_CELL_SIZE.1 as f32 * 0.5 }, ));
             graphics::draw(ctx, &bounding_box, (ggez::mint::Point2 { x: 0.0, y: ((SCREEN_SIZE.1 - (GRID_CELL_SIZE.1 as f32 * 2f32)) / 1.5) + GRID_CELL_SIZE.1 as f32 }, ));
 
+            // Draw different text for each choice
             let mod_1_text = graphics::Text::new(
                 graphics::TextFragment::from(format!("{:?} {:?}", self.random_mods[0].to_string(), self.random_mods[0].get_piece(self.cur_winner.unwrap()))
             )
@@ -456,7 +506,6 @@ impl event::EventHandler for AppState {
             unsafe {
             let mut rng: rngs::StdRng = rand::SeedableRng::seed_from_u64(seed);
             seed += 1;
-            println!("{:?}", seed);
             self.screen = ScreenState::ModScreen;
             let (mut mod_1, mut mod_2, mut mod_3) = (generate_mod(self.cur_winner.unwrap(), rng.gen(), rng.gen()), generate_mod(self.cur_winner.unwrap(), rng.gen(), rng.gen()), generate_mod(self.cur_winner.unwrap(), rng.gen(), rng.gen()));
             if cur_loser == Colour::White {
@@ -604,7 +653,7 @@ impl event::EventHandler for AppState {
                             self.board.board.insert(Position { file: self.selected_pos.0 as u8, rank: self.selected_pos.1 as u8 }, self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }]);
                             self.board.board.remove(&Position { file: pos_x as u8, rank: pos_y as u8 });
                         }
-                        if successful {
+                        if successful && self.board.board.contains_key(&Position { file: pos_x as u8, rank: pos_y as u8 }){
                             match self.board.active_color {
                                 Colour::White => { 
                                     let p = self.board.board[&Position { file: pos_x as u8, rank: pos_y as u8 }];
@@ -642,14 +691,14 @@ impl event::EventHandler for AppState {
                         if self.selected_pos.1 == 9 { 
                             self.board.board.insert(Position { file: pos_x as u8, rank: pos_y as u8 }, self.taken_black_pieces[self.selected_pos.0 as usize].type_as_colour(Colour::White));
                             self.taken_black_pieces.remove(self.selected_pos.0 as usize); 
-                            self.board.active_color = Colour::Black;
                             self.board.get_game_state();
+                            self.board.active_color = Colour::Black;
                         }
                         else if self.selected_pos.1 == 10 { 
                             self.board.board.insert(Position { file: pos_x as u8, rank: pos_y as u8 }, self.taken_white_pieces[self.selected_pos.0 as usize].type_as_colour(Colour::Black));
                             self.taken_white_pieces.remove(self.selected_pos.0 as usize); 
-                            self.board.active_color = Colour::White;
                             self.board.get_game_state();
+                            self.board.active_color = Colour::White;
                         }
                     }
 
@@ -808,10 +857,5 @@ pub fn main() -> GameResult {
     let (contex, event_loop) = &mut context_builder.build()?;
 
     let state = &mut AppState::new(contex)?;
-    state.white_mods.insert(Mods::CrazyHouse(PieceType::Queen(Colour::Black)));
-    state.white_mods.insert(Mods::Atomic(PieceType::Rook(Colour::White)));
-    state.white_mods.insert(Mods::Sniper(PieceType::Bishop(Colour::White)));
-    state.white_mods.insert(Mods::Sniper(PieceType::Knight(Colour::White)));
-    state.white_mods.insert(Mods::Atomic(PieceType::Knight(Colour::White)));
     event::run(contex, event_loop, state)       // Run window event loop
 }
